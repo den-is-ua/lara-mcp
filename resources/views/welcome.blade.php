@@ -42,7 +42,6 @@
                             Log in
                         </a>
 
-                        {{-- @chisel-registration --}}
                         @if (Route::has('register'))
                             <a
                                 href="{{ route('register') }}"
@@ -50,7 +49,6 @@
                                 Register
                             </a>
                         @endif
-                        {{-- @end-chisel-registration --}}
                     @endauth
                 </nav>
             @endif
