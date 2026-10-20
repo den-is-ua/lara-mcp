@@ -13,13 +13,13 @@ return [
     |
     */
 
-    'default' => 'openai',
+    'default' => 'gemini',
     'default_for_images' => 'gemini',
-    'default_for_audio' => 'openai',
-    'default_for_transcription' => 'openai',
-    'default_for_embeddings' => 'openai',
-    'default_for_reranking' => 'cohere',
-    'default_for_classification' => 'typesafe',
+    'default_for_audio' => 'gemini',
+    'default_for_transcription' => 'gemini',
+    'default_for_embeddings' => 'gemini',
+    'default_for_reranking' => 'gemini',
+    'default_for_classification' => 'gemini',
 
     /*
     |--------------------------------------------------------------------------
@@ -104,6 +104,11 @@ return [
             'driver' => 'gemini',
             'key' => env('GEMINI_API_KEY'),
             'url' => env('GEMINI_URL', 'https://generativelanguage.googleapis.com/v1beta/'),
+            'models' => [
+                'text' => [
+                    'default' => 'gemini-3.1-flash-lite'
+                ]
+            ]
         ],
 
         'groq' => [
