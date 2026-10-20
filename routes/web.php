@@ -8,11 +8,7 @@ Route::view('/', 'welcome')->name('home');
 Route::livewire('todos', 'pages::todos')->name('todos');
 
 Route::get('stream', function () {
-    return (new TodoStream)->stream('Проаналізуй завдання...')->then(function (StreamedAgentResponse $response) {
-            $text = $response->text;
-
-            logger($text);
-        });;
+    return (new TodoStream)->stream('Проаналізуй завдання...');
 });
 
 Route::view('/stream-view', 'stream');
