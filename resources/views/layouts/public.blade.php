@@ -11,6 +11,9 @@
                 <flux:navbar.item icon="clipboard-document-list" :href="route('todos')" :current="request()->routeIs('todos')" wire:navigate>
                     {{ __('Todos') }}
                 </flux:navbar.item>
+                <flux:navbar.item icon="chat-bubble-left-right" :href="route('chat')" :current="request()->routeIs('chat')" wire:navigate>
+                    {{ __('Chat') }}
+                </flux:navbar.item>
             </flux:navbar>
 
             <flux:spacer />
