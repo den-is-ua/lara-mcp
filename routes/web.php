@@ -1,10 +1,13 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Ai\Agents\TodoStream;
 use App\Ai\Agents\TodoChat;
-use Laravel\Ai\Vercel\Vercel;
+use App\Ai\Agents\TodoStream;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
+use Laravel\Ai\Vercel\Vercel;
 
 Route::view('/', 'welcome')->name('home');
 
@@ -16,16 +19,31 @@ Route::get('stream', function () {
 
 Route::view('/stream-view', 'stream');
 
-Route::post('/chat/message', function (Request $request) {
+Route::post('/chat/message', function (Request $request): Response {
+    $request->validate([
+        'channel' => ['required', 'uuid'],
+        'messages' => ['required', 'array', 'min:1'],
+        'messages.*.role' => ['required', 'string', 'in:user,assistant'],
+        'messages.*.parts' => ['required', 'array'],
+    ]);
+
     $chat = Vercel::chat($request);
+    $message = $chat->message();
 
-    return (new TodoChat())
+    if ($message === null || blank($message->content)) {
+        throw ValidationException::withMessages([
+            'messages' => 'A user message is required.',
+        ]);
+    }
+
+    (new TodoChat)
         ->withMessages($chat->history())
-        ->stream($chat)
-        ->usingProtocol($chat->protocol());
-});
+        ->broadcastNow($chat, new Channel('chat.'.$request->string('channel')->toString()));
 
-Route::view('/chat', 'chat');
+    return response()->noContent();
+})->name('chat.message');
+
+Route::view('/chat', 'chat')->name('chat');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');

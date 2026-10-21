@@ -7,6 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>ToDo AI Chat</title>
+    @vite(['resources/js/app.js'])
 
     <style>
         body {
@@ -69,135 +70,170 @@
         <button id="send" type="submit">Надіслати</button>
     </form>
 
-    <script>
-        
-const form = document.getElementById('chat-form');
-const input = document.getElementById('message');
-const sendButton = document.getElementById('send');
-const messagesContainer = document.getElementById('messages');
+    <script type="module">
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('message');
+        const sendButton = document.getElementById('send');
+        const messagesContainer = document.getElementById('messages');
+        const chatUrl = @json(route('chat.message'));
 
-const messages = [];
+        const messages = [];
 
-function renderMessage(role, text) {
-    const element = document.createElement('div');
-    element.className = `message ${role}`;
-    element.textContent =
-        `${role === 'user' ? 'Ти' : 'AI'}: ${text}`;
+        function renderMessage(role, text) {
+            const element = document.createElement('div');
+            element.className = `message ${role}`;
+            element.textContent = `${role === 'user' ? 'Ти' : 'AI'}: ${text}`;
 
-    messagesContainer.appendChild(element);
-    return element;
-}
+            messagesContainer.appendChild(element);
 
-form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-
-    const text = input.value.trim();
-
-    if (!text) {
-        return;
-    }
-
-    messages.push({
-        id: crypto.randomUUID(),
-        role: 'user',
-        parts: [{ type: 'text', text }],
-    });
-
-    renderMessage('user', text);
-
-    input.value = '';
-    input.disabled = true;
-    sendButton.disabled = true;
-
-    const assistantElement = renderMessage('assistant', '');
-    let assistantText = '';
-
-    try {
-        const response = await fetch('/chat/message', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'text/event-stream',
-                'X-CSRF-TOKEN': document
-                    .querySelector('meta[name="csrf-token"]')
-                    .content,
-            },
-            body: JSON.stringify({ messages }),
-        });
-
-        if (!response.ok) {
-            throw new Error(
-                `HTTP ${response.status}: ${await response.text()}`
-            );
+            return element;
         }
 
-        if (!response.body) {
-            throw new Error('Браузер не отримав потік відповіді.');
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { value, done } = await reader.read();
-
-            if (done) {
-                break;
-            }
-
-            buffer += decoder.decode(value, { stream: true });
-
-            const events = buffer.split('\n\n');
-            buffer = events.pop() ?? '';
-
-            for (const eventText of events) {
-                const dataLines = eventText
-                    .split('\n')
-                    .filter(line => line.startsWith('data:'))
-                    .map(line => line.slice(5).trimStart());
-
-                if (!dataLines.length) {
-                    continue;
-                }
-
-                const data = dataLines.join('\n');
-
-                if (data === '[DONE]') {
-                    continue;
-                }
-
-                let part;
-
+        function payloadFrom(data) {
+            if (typeof data === 'string') {
                 try {
-                    part = JSON.parse(data);
+                    return JSON.parse(data);
                 } catch {
-                    continue;
-                }
-
-                if (part.type === 'text-delta') {
-                    assistantText += part.delta;
-                    assistantElement.textContent = `AI: ${assistantText}`;
+                    return null;
                 }
             }
+
+            return data;
         }
 
-        messages.push({
-            id: crypto.randomUUID(),
-            role: 'assistant',
-            parts: [{ type: 'text', text: assistantText }],
+        function waitForSubscription(channel) {
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Не вдалося підключитися до трансляції.'));
+                }, 10000);
+
+                channel.subscribed(() => {
+                    clearTimeout(timeout);
+                    resolve();
+                });
+
+                channel.error(() => {
+                    clearTimeout(timeout);
+                    reject(new Error('Підписка на канал відхилена.'));
+                });
+            });
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const text = input.value.trim();
+
+            if (!text) {
+                return;
+            }
+
+            if (!window.Echo) {
+                renderMessage('assistant', 'Помилка: трансляція не підключена.');
+
+                return;
+            }
+
+            messages.push({
+                id: crypto.randomUUID(),
+                role: 'user',
+                parts: [{ type: 'text', text }],
+            });
+
+            renderMessage('user', text);
+
+            input.value = '';
+            input.disabled = true;
+            sendButton.disabled = true;
+
+            const channelId = crypto.randomUUID();
+            let channelName = null;
+            let assistantElement = null;
+
+            try {
+                channelName = `chat.${channelId}`;
+                const channel = window.Echo.channel(channelName);
+                assistantElement = renderMessage('assistant', '…');
+                let assistantText = '';
+                let streamFinished = false;
+
+                const streamResult = new Promise((resolve) => {
+                    channel.listenToAll((eventName, data) => {
+                        const payload = payloadFrom(data);
+
+                        if (!payload || typeof payload !== 'object') {
+                            return;
+                        }
+
+                        if (payload.type === 'text_delta') {
+                            assistantText += payload.delta ?? '';
+                            assistantElement.textContent = `AI: ${assistantText}`;
+
+                            return;
+                        }
+
+                        if (payload.type === 'stream_end') {
+                            streamFinished = true;
+                            resolve(assistantText);
+                        }
+                    });
+                });
+
+                await waitForSubscription(channel);
+
+                const response = await fetch(chatUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document
+                            .querySelector('meta[name="csrf-token"]')
+                            .content,
+                    },
+                    body: JSON.stringify({
+                        channel: channelId,
+                        messages,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+
+                const reply = streamFinished
+                    ? assistantText
+                    : await Promise.race([
+                        streamResult,
+                        new Promise((resolve, reject) => {
+                            setTimeout(() => reject(new Error('Відповідь не надійшла.')), 15000);
+                        }),
+                    ]);
+
+                messages.push({
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    parts: [{ type: 'text', text: reply }],
+                });
+            } catch (error) {
+                const errorText = `Помилка: ${error.message}`;
+
+                if (assistantElement) {
+                    assistantElement.textContent = errorText;
+                } else {
+                    renderMessage('assistant', errorText);
+                }
+
+                console.error(error);
+            } finally {
+                if (channelName) {
+                    window.Echo.leave(channelName);
+                }
+
+                input.disabled = false;
+                sendButton.disabled = false;
+                input.focus();
+            }
         });
-
-    } catch (error) {
-        assistantElement.textContent = `Помилка: ${error.message}`;
-        console.error(error);
-    } finally {
-        input.disabled = false;
-        sendButton.disabled = false;
-        input.focus();
-    }
-});
-
     </script>
 </body>
 </html>
