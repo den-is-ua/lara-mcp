@@ -2,15 +2,15 @@
 
 namespace App\Ai\Agents;
 
-use Laravel\Ai\Concerns\RemembersConversations;
+use App\Ai\Tools\CreateTodoItem;
+use App\Ai\Tools\GetAllTodoItems;
+use App\Ai\Tools\UpdateTodoItem;
 use Laravel\Ai\Contracts\Agent;
-use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\ProviderTool;
-use Stringable;
 
 class TodoChat implements Agent, HasTools
 {
@@ -28,9 +28,12 @@ class TodoChat implements Agent, HasTools
             Допомагай користувачу планувати й аналізувати завдання.
             Відповідай чітко та лаконічно.
 
-            Поки що ти лише консультуєш користувача.
-            Не стверджуй, що створив, видалив або змінив
-            завдання в базі даних.
+            Для роботи зі списком використовуй інструменти.
+            Перед створенням або зміною спочатку переглянь список,
+            щоб не дублювати завдання і взяти правильний id.
+            Стверджуй, що завдання створене або змінене, лише
+            після успішної відповіді інструмента.
+            Не вигадуй id і не змінюй завдання без запиту.
         PROMPT;
     }
 
@@ -51,6 +54,10 @@ class TodoChat implements Agent, HasTools
      */
     public function tools(): iterable
     {
-        return [];
+        return [
+            new GetAllTodoItems,
+            new CreateTodoItem,
+            new UpdateTodoItem,
+        ];
     }
 }

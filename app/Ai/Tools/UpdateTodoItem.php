@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Ai\Tools;
+
+use App\Models\Todo;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\JsonSchema\Types\Type;
+use Illuminate\Validation\ValidationException;
+use Laravel\Ai\Contracts\Tool;
+use Laravel\Ai\Tools\Request;
+use Stringable;
+
+class UpdateTodoItem implements Tool
+{
+    /**
+     * Get the description of the tool's purpose.
+     */
+    public function description(): Stringable|string
+    {
+        return 'Оновлює назву, опис або стан виконання наявного завдання. Потрібен id із списку завдань.';
+    }
+
+    /**
+     * Execute the tool.
+     */
+    public function handle(Request $request): Stringable|string
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:todos,id'],
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'completed' => ['sometimes', 'boolean'],
+        ]);
+
+        $changes = [];
+
+        if (array_key_exists('title', $validated)) {
+            $title = trim((string) $validated['title']);
+
+            if ($title === '') {
+                throw ValidationException::withMessages([
+                    'title' => __('validation.required', ['attribute' => 'title']),
+                ]);
+            }
+
+            $changes['title'] = $title;
+        }
+
+        if (array_key_exists('description', $validated)) {
+            $description = $validated['description'];
+            $description = is_string($description) ? trim($description) : null;
+            $changes['description'] = $description === '' ? null : $description;
+        }
+
+        if (array_key_exists('completed', $validated)) {
+            $changes['completed'] = $request->boolean('completed');
+        }
+
+        if ($changes === []) {
+            throw ValidationException::withMessages([
+                'title' => 'Provide a title, description, or completed state.',
+            ]);
+        }
+
+        $todo = Todo::query()->findOrFail((int) $validated['id']);
+        $todo->update($changes);
+
+        return json_encode([
+            'id' => $todo->id,
+            'title' => $todo->title,
+            'description' => $todo->description,
+            'completed' => $todo->completed,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Get the tool's schema definition.
+     *
+     * @return array<string, Type>
+     */
+    public function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->integer()
+                ->description('Ідентифікатор завдання зі списку.')
+                ->required(),
+            'title' => $schema->string()
+                ->description('Нова назва завдання.'),
+            'description' => $schema->string()
+                ->description('Новий опис. Передай null, щоб очистити опис.')
+                ->nullable(),
+            'completed' => $schema->boolean()
+                ->description('true, якщо завдання виконане, і false, якщо його треба відкрити знову.'),
+        ];
+    }
+}
