@@ -20,6 +20,8 @@ class TodoFactory extends Factory
         return [
             'title' => fake()->sentence(4),
             'description' => fake()->optional()->paragraph(),
+            'label' => [],
+            'due_date' => null,
             'completed' => false,
         ];
     }

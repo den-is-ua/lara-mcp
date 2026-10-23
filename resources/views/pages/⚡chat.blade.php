@@ -101,17 +101,17 @@ new #[Layout('layouts::public')] #[Title('Chat')] class extends Component {
                 <div
                     wire:key="message-{{ $message['id'] }}"
                     @class([
-                        'max-w-[85%] whitespace-pre-wrap rounded-lg px-4 py-3',
-                        'self-end bg-zinc-200 text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100' => $message['role'] === 'user',
-                        'self-start border border-zinc-200 bg-white text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100' => $message['role'] === 'assistant',
+                        'max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-4 py-3 text-base leading-relaxed',
+                        'self-end bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950!' => $message['role'] === 'user',
+                        'self-start border border-zinc-300 bg-white text-zinc-950 dark:border-zinc-500 dark:bg-zinc-700 dark:text-white!' => $message['role'] === 'assistant',
                     ])
                 >{{ $message['content'] }}</div>
             @empty
                 <flux:text>{{ __('Ask about your todos.') }}</flux:text>
             @endforelse
 
-            <div data-chat-pending class="hidden max-w-[85%] self-end whitespace-pre-wrap rounded-lg bg-zinc-200 px-4 py-3 text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100"></div>
-            <div data-chat-stream class="hidden max-w-[85%] self-start whitespace-pre-wrap rounded-lg border border-zinc-200 bg-white px-4 py-3 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"></div>
+            <div data-chat-pending class="hidden max-w-[85%] self-end whitespace-pre-wrap break-words rounded-lg bg-zinc-900 px-4 py-3 text-base leading-relaxed text-white dark:bg-zinc-100 dark:text-zinc-950!"></div>
+            <div data-chat-stream class="hidden max-w-[85%] self-start whitespace-pre-wrap break-words rounded-lg border border-zinc-300 bg-white px-4 py-3 text-base leading-relaxed text-zinc-950 dark:border-zinc-500 dark:bg-zinc-700 dark:text-white!"></div>
         </div>
 
         <flux:text data-chat-status class="hidden" data-disconnected="{{ __('Broadcasting is not connected.') }}"></flux:text>

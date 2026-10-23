@@ -2,9 +2,9 @@
 
 namespace App\Ai\Agents;
 
-use App\Ai\Tools\CreateTodoItem;
-use App\Ai\Tools\GetAllTodoItems;
-use App\Ai\Tools\UpdateTodoItem;
+use App\Mcp\Tools\CreateTodoTool;
+use App\Mcp\Tools\ListTodosTool;
+use App\Mcp\Tools\UpdateTodoTool;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Contracts\Tool;
@@ -55,9 +55,9 @@ class TodoChat implements Agent, HasTools
     public function tools(): iterable
     {
         return [
-            new GetAllTodoItems,
-            new CreateTodoItem,
-            new UpdateTodoItem,
+            new ListTodosTool,
+            new CreateTodoTool,
+            new UpdateTodoTool,
         ];
     }
 }

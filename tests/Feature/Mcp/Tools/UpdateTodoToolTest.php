@@ -1,15 +1,14 @@
 <?php
 
-namespace Tests\Feature\Ai\Tools;
+namespace Tests\Feature\Mcp\Tools;
 
-use App\Ai\Tools\UpdateTodoItem;
+use App\Mcp\Servers\TodoServer;
+use App\Mcp\Tools\UpdateTodoTool;
 use App\Models\Todo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Validation\ValidationException;
-use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
-class UpdateTodoItemTest extends TestCase
+class UpdateTodoToolTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -21,22 +20,24 @@ class UpdateTodoItemTest extends TestCase
             'completed' => false,
         ]);
 
-        $result = (new UpdateTodoItem)->handle(new Request([
+        $response = TodoServer::tool(UpdateTodoTool::class, [
             'id' => $todo->id,
             'completed' => true,
-        ]));
+        ]);
 
         $todo->refresh();
 
         $this->assertSame('Buy milk', $todo->title);
         $this->assertSame('Two liters', $todo->description);
         $this->assertTrue($todo->completed);
-        $this->assertSame([
+
+        $response->assertOk()->assertStructuredContent([
             'id' => $todo->id,
             'title' => 'Buy milk',
             'description' => 'Two liters',
+            'due_date' => null,
             'completed' => true,
-        ], json_decode($result, true));
+        ]);
     }
 
     public function test_updating_the_title_and_notes_trims_them(): void
@@ -46,11 +47,11 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Old notes',
         ]);
 
-        (new UpdateTodoItem)->handle(new Request([
+        TodoServer::tool(UpdateTodoTool::class, [
             'id' => $todo->id,
             'title' => '  New title  ',
             'description' => '  New notes  ',
-        ]));
+        ])->assertOk();
 
         $todo->refresh();
 
@@ -66,10 +67,10 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Two liters',
         ]);
 
-        (new UpdateTodoItem)->handle(new Request([
+        TodoServer::tool(UpdateTodoTool::class, [
             'id' => $todo->id,
             'description' => null,
-        ]));
+        ])->assertOk();
 
         $todo->refresh();
 
@@ -81,19 +82,12 @@ class UpdateTodoItemTest extends TestCase
     {
         $todo = Todo::factory()->create(['title' => 'Keep me']);
 
-        try {
-            (new UpdateTodoItem)->handle(new Request([
-                'id' => $todo->id + 1,
-                'title' => 'Changed',
-            ]));
-
-            $this->fail('A missing todo was updated.');
-        } catch (ValidationException $exception) {
-            $this->assertSame(
-                'The selected id is invalid.',
-                $exception->validator->errors()->first('id'),
-            );
-        }
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id + 1,
+            'title' => 'Changed',
+        ])->assertHasErrors([
+            'The selected id is invalid.',
+        ]);
 
         $this->assertSame('Keep me', $todo->refresh()->title);
     }
@@ -105,18 +99,11 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Same notes',
         ]);
 
-        try {
-            (new UpdateTodoItem)->handle(new Request([
-                'id' => $todo->id,
-            ]));
-
-            $this->fail('An update without changes was accepted.');
-        } catch (ValidationException $exception) {
-            $this->assertSame(
-                'Provide a title, description, or completed state.',
-                $exception->validator->errors()->first('title'),
-            );
-        }
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+        ])->assertHasErrors([
+            'Provide a title, description, due date, or completed state.',
+        ]);
 
         $todo->refresh();
 
@@ -132,17 +119,24 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Two liters',
         ]);
 
-        $result = (new UpdateTodoItem)->handle(new Request([
+        $response = TodoServer::tool(UpdateTodoTool::class, [
             'id' => $todo->id,
             'completed' => false,
-        ]));
+        ]);
 
         $todo->refresh();
 
         $this->assertFalse($todo->completed);
         $this->assertSame('Buy milk', $todo->title);
         $this->assertSame('Two liters', $todo->description);
-        $this->assertFalse(json_decode($result, true)['completed']);
+
+        $response->assertOk()->assertStructuredContent([
+            'id' => $todo->id,
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+            'due_date' => null,
+            'completed' => false,
+        ]);
     }
 
     public function test_blank_description_clears_the_notes(): void
@@ -152,10 +146,10 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Two liters',
         ]);
 
-        (new UpdateTodoItem)->handle(new Request([
+        TodoServer::tool(UpdateTodoTool::class, [
             'id' => $todo->id,
             'description' => '   ',
-        ]));
+        ])->assertOk();
 
         $todo->refresh();
 
@@ -171,19 +165,12 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Same notes',
         ]);
 
-        try {
-            (new UpdateTodoItem)->handle(new Request([
-                'id' => $todo->id,
-                'title' => str_repeat('a', 256),
-            ]));
-
-            $this->fail('A title longer than 255 characters was accepted.');
-        } catch (ValidationException $exception) {
-            $this->assertSame(
-                'The title field must not be greater than 255 characters.',
-                $exception->validator->errors()->first('title'),
-            );
-        }
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'title' => str_repeat('a', 256),
+        ])->assertHasErrors([
+            'The title field must not be greater than 255 characters.',
+        ]);
 
         $todo->refresh();
 
@@ -198,19 +185,12 @@ class UpdateTodoItemTest extends TestCase
             'description' => 'Same notes',
         ]);
 
-        try {
-            (new UpdateTodoItem)->handle(new Request([
-                'id' => $todo->id,
-                'description' => str_repeat('a', 5001),
-            ]));
-
-            $this->fail('Notes longer than 5000 characters were accepted.');
-        } catch (ValidationException $exception) {
-            $this->assertSame(
-                'The description field must not be greater than 5000 characters.',
-                $exception->validator->errors()->first('description'),
-            );
-        }
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'description' => str_repeat('a', 5001),
+        ])->assertHasErrors([
+            'The description field must not be greater than 5000 characters.',
+        ]);
 
         $todo->refresh();
 
@@ -222,20 +202,67 @@ class UpdateTodoItemTest extends TestCase
     {
         $todo = Todo::factory()->create(['title' => 'Keep me']);
 
-        try {
-            (new UpdateTodoItem)->handle(new Request([
-                'id' => $todo->id,
-                'title' => '   ',
-            ]));
-
-            $this->fail('A whitespace title was accepted.');
-        } catch (ValidationException $exception) {
-            $this->assertSame(
-                'The title field is required.',
-                $exception->validator->errors()->first('title'),
-            );
-        }
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'title' => '   ',
+        ])->assertHasErrors([
+            'The title field is required.',
+        ]);
 
         $this->assertSame('Keep me', $todo->refresh()->title);
+    }
+
+    public function test_due_date_can_be_set(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+            'due_date' => null,
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'due_date' => '2026-10-30',
+        ])->assertOk()->assertStructuredContent([
+            'id' => $todo->id,
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+            'due_date' => '2026-10-30',
+            'completed' => false,
+        ]);
+
+        $this->assertSame('2026-10-30', $todo->refresh()->due_date?->toDateString());
+    }
+
+    public function test_null_due_date_clears_the_date(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'due_date' => null,
+        ])->assertOk();
+
+        $this->assertNull($todo->refresh()->due_date);
+    }
+
+    public function test_invalid_due_date_is_rejected(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'due_date' => 'tomorrow',
+        ])->assertHasErrors([
+            'The due date field must be a valid date.',
+        ]);
+
+        $this->assertSame('2026-10-30', $todo->refresh()->due_date?->toDateString());
     }
 }
