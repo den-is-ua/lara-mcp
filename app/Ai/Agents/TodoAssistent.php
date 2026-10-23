@@ -13,10 +13,8 @@ use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\ProviderTool;
 use Stringable;
-use function json_encode;
 
-
-class TodoAssistent implements Agent, Conversational, HasTools, HasStructuredOutput
+class TodoAssistent implements Agent, Conversational, HasStructuredOutput, HasTools
 {
     use Promptable;
 
@@ -74,13 +72,14 @@ class TodoAssistent implements Agent, Conversational, HasTools, HasStructuredOut
     public function messages(): iterable
     {
         return Todo::query()
-                ->where('completed', false)
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(fn ($message) => new Message(
-                    'user', json_encode(['id' => $message->id, 'title' => $message->title])
-                ));
+            ->where('completed', false)
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(fn (Todo $todo): Message => new Message('user', $this->encodeMessage([
+                'id' => $todo->id,
+                'title' => $todo->title,
+            ])));
     }
 
     /**
@@ -92,14 +91,22 @@ class TodoAssistent implements Agent, Conversational, HasTools, HasStructuredOut
     {
         return [];
     }
-    
+
     public function schema(JsonSchema $schema): array
     {
         return [
             'title' => $schema->string()->min(3)->max(255)->required(),
             'description' => $schema->string(),
             'already_in_list' => $schema->boolean()->required(),
-            'existing_todo_id' => $schema->number()
+            'existing_todo_id' => $schema->number(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function encodeMessage(array $payload): string
+    {
+        return json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 }

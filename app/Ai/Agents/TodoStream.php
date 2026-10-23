@@ -35,9 +35,21 @@ class TodoStream implements Agent, Conversational, HasTools
             ->latest()
             ->take(10)
             ->get()
-            ->map(fn ($message) => new Message(
-                'user', json_encode(['title' => $message->title, 'description' => $message->description, 'label' => $message->label ?? [], 'due_date' => $message->due_date?->toDateString(), 'completed' => $message->completed])
-            ));
+            ->map(fn (Todo $todo): Message => new Message('user', $this->encodeMessage([
+                'title' => $todo->title,
+                'description' => $todo->description,
+                'label' => $todo->label,
+                'due_date' => $todo->due_date?->toDateString(),
+                'completed' => $todo->completed,
+            ])));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function encodeMessage(array $payload): string
+    {
+        return json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 
     /**
