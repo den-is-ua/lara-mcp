@@ -11,6 +11,7 @@ use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\ProviderTool;
+use Laravel\Ai\Tools\McpServerTool;
 
 class TodoChat implements Agent, HasTools
 {
@@ -55,9 +56,9 @@ class TodoChat implements Agent, HasTools
     public function tools(): iterable
     {
         return [
-            new ListTodosTool,
-            new CreateTodoTool,
-            new UpdateTodoTool,
+            new McpServerTool(new ListTodosTool),
+            new McpServerTool(new CreateTodoTool),
+            new McpServerTool(new UpdateTodoTool),
         ];
     }
 }
