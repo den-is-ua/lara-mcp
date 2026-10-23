@@ -74,6 +74,32 @@ class GetAllTodoItemsTest extends TestCase
         $this->assertSame([false], array_column($todos, 'completed'));
     }
 
+    public function test_completed_filter_returns_finished_todos_newest_first(): void
+    {
+        Todo::factory()->completed()->create([
+            'title' => 'Older done',
+            'description' => null,
+        ]);
+        Todo::factory()->create([
+            'title' => 'Still open',
+            'description' => null,
+        ]);
+        Todo::factory()->completed()->create([
+            'title' => 'Newer done',
+            'description' => 'Done',
+        ]);
+
+        $result = (new GetAllTodoItems)->handle(new Request([
+            'completed' => true,
+        ]));
+
+        $todos = json_decode($result, true);
+
+        $this->assertSame(['Newer done', 'Older done'], array_column($todos, 'title'));
+        $this->assertSame([true, true], array_column($todos, 'completed'));
+        $this->assertSame('Done', $todos[0]['description']);
+    }
+
     public function test_empty_list_returns_an_empty_array(): void
     {
         $result = (new GetAllTodoItems)->handle(new Request);

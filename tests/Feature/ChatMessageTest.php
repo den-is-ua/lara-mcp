@@ -31,6 +31,44 @@ class ChatMessageTest extends TestCase
         $response->assertSee('data-chat-stream', false);
     }
 
+    public function test_surrounding_whitespace_is_trimmed_before_the_assistant_is_prompted(): void
+    {
+        TodoChat::fake(['Noted']);
+        Event::fake([AnonymousEvent::class]);
+
+        Livewire::test('pages::chat')
+            ->set('draft', '  Hello  ')
+            ->call('send')
+            ->assertHasNoErrors()
+            ->assertSet('draft', '')
+            ->assertSet('messages.0.content', 'Hello')
+            ->assertSet('messages.1.role', 'assistant')
+            ->assertSet('messages.1.content', 'Noted');
+
+        TodoChat::assertPrompted(fn (AgentPrompt $prompt): bool => $prompt->prompt === 'Hello');
+    }
+
+    public function test_unknown_history_roles_are_sent_as_user_messages(): void
+    {
+        TodoChat::fake(['Ok']);
+        Event::fake([AnonymousEvent::class]);
+
+        Livewire::test('pages::chat')
+            ->set('messages', [
+                ['id' => '1', 'role' => 'system', 'content' => 'Hidden context'],
+            ])
+            ->set('draft', 'Hello')
+            ->call('send')
+            ->assertHasNoErrors();
+
+        TodoChat::assertPrompted(function (AgentPrompt $prompt): bool {
+            return $prompt->prompt === 'Hello'
+                && count($prompt->messages ?? []) === 1
+                && $prompt->messages[0] instanceof UserMessage
+                && $prompt->messages[0]->content === 'Hidden context';
+        });
+    }
+
     public function test_whitespace_message_is_rejected(): void
     {
         TodoChat::fake();
