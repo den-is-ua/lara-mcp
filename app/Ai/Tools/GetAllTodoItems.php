@@ -41,6 +41,7 @@ class GetAllTodoItems implements Tool
                 'id' => $todo->id,
                 'title' => $todo->title,
                 'description' => $todo->description,
+                'label' => $todo->label ?? [],
                 'completed' => $todo->completed,
             ])
             ->all();

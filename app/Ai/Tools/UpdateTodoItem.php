@@ -29,6 +29,8 @@ class UpdateTodoItem implements Tool
             'id' => ['required', 'integer', 'exists:todos,id'],
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'label' => ['sometimes', 'array'],
+            'label.*' => ['string', 'max:50'],
             'completed' => ['sometimes', 'boolean'],
         ]);
 
@@ -52,13 +54,17 @@ class UpdateTodoItem implements Tool
             $changes['description'] = $description === '' ? null : $description;
         }
 
+        if (array_key_exists('label', $validated)) {
+            $changes['label'] = $this->labels($validated['label']);
+        }
+
         if (array_key_exists('completed', $validated)) {
             $changes['completed'] = $request->boolean('completed');
         }
 
         if ($changes === []) {
             throw ValidationException::withMessages([
-                'title' => 'Provide a title, description, or completed state.',
+                'title' => 'Provide a title, description, label, or completed state.',
             ]);
         }
 
@@ -69,6 +75,7 @@ class UpdateTodoItem implements Tool
             'id' => $todo->id,
             'title' => $todo->title,
             'description' => $todo->description,
+            'label' => $todo->label ?? [],
             'completed' => $todo->completed,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
@@ -89,8 +96,31 @@ class UpdateTodoItem implements Tool
             'description' => $schema->string()
                 ->description('Новий опис. Передай null, щоб очистити опис.')
                 ->nullable(),
+            'label' => $schema->array()
+                ->description('Новий список лейблів. Передай порожній масив, щоб прибрати лейбли.')
+                ->items($schema->string()),
             'completed' => $schema->boolean()
                 ->description('true, якщо завдання виконане, і false, якщо його треба відкрити знову.'),
         ];
+    }
+
+    /**
+     * Normalize labels before storing.
+     *
+     * @return array<int, string>
+     */
+    private function labels(mixed $labels): array
+    {
+        if (! is_array($labels)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(
+                fn (mixed $label): string => is_string($label) ? trim($label) : '',
+                $labels,
+            ),
+            fn (string $label): bool => $label !== '',
+        )));
     }
 }

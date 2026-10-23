@@ -2,6 +2,7 @@
 
 namespace App\Ai\Agents;
 
+use App\Models\Todo;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
 use Laravel\Ai\Contracts\HasTools;
@@ -10,7 +11,6 @@ use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\ProviderTool;
 use Stringable;
-use App\Models\Todo;
 
 class TodoStream implements Agent, Conversational, HasTools
 {
@@ -32,12 +32,12 @@ class TodoStream implements Agent, Conversational, HasTools
     public function messages(): iterable
     {
         return Todo::query()
-                ->latest()
-                ->take(10)
-                ->get()
-                ->map(fn ($message) => new Message(
-                    'user', json_encode(['title' => $message->title, 'description' => $message->description, 'completed' => $message->completed])
-                ));
+            ->latest()
+            ->take(10)
+            ->get()
+            ->map(fn ($message) => new Message(
+                'user', json_encode(['title' => $message->title, 'description' => $message->description, 'label' => $message->label ?? [], 'completed' => $message->completed])
+            ));
     }
 
     /**

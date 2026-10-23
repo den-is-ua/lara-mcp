@@ -34,6 +34,7 @@ class TodoTest extends TestCase
         Livewire::test('pages::todos')
             ->set('title', 'Write tests')
             ->set('description', 'Cover create')
+            ->set('labels', ['backend', 'urgent'])
             ->call('create')
             ->assertHasNoErrors();
 
@@ -43,6 +44,7 @@ class TodoTest extends TestCase
         $this->assertModelExists($todo);
         $this->assertSame('Write tests', $todo->title);
         $this->assertSame('Cover create', $todo->description);
+        $this->assertSame(['backend', 'urgent'], $todo->label);
         $this->assertFalse($todo->completed);
     }
 
@@ -68,6 +70,7 @@ class TodoTest extends TestCase
             ->call('edit', $todo->id)
             ->set('editingTitle', 'New title')
             ->set('editingDescription', 'New notes')
+            ->set('editingLabels', ['frontend', 'review'])
             ->call('update')
             ->assertHasNoErrors();
 
@@ -75,6 +78,7 @@ class TodoTest extends TestCase
 
         $this->assertSame('New title', $todo->title);
         $this->assertSame('New notes', $todo->description);
+        $this->assertSame(['frontend', 'review'], $todo->label);
         $this->assertFalse($todo->completed);
     }
 
@@ -136,5 +140,19 @@ class TodoTest extends TestCase
         $response->assertOk();
         $response->assertSee('<script>alert("x")</script>');
         $response->assertDontSee('<script>alert("x")</script>', false);
+    }
+
+    public function test_labels_are_rendered_in_the_todo_list(): void
+    {
+        Todo::factory()->create([
+            'title' => 'Plan release',
+            'label' => ['backend', 'urgent'],
+        ]);
+
+        $response = $this->get(route('todos'));
+
+        $response->assertOk();
+        $response->assertSee('backend');
+        $response->assertSee('urgent');
     }
 }
