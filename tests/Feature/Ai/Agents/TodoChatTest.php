@@ -5,7 +5,7 @@ namespace Tests\Feature\Ai\Agents;
 use App\Ai\Agents\TodoChat;
 use App\Models\Todo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Mcp\Server\Tool;
+use Laravel\Ai\Tools\McpServerTool;
 use Tests\TestCase;
 
 class TodoChatTest extends TestCase
@@ -15,7 +15,7 @@ class TodoChatTest extends TestCase
     public function test_chat_uses_the_todo_server_tools(): void
     {
         $names = collect((new TodoChat)->tools())
-            ->map(fn (Tool $tool): string => $tool->name())
+            ->map(fn (McpServerTool $tool): string => $tool->name())
             ->sort()
             ->values()
             ->all();
