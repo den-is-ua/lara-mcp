@@ -18,6 +18,7 @@ class CreateTodoItemTest extends TestCase
         $result = (new CreateTodoItem)->handle(new Request([
             'title' => '  Buy milk  ',
             'description' => '  Two liters  ',
+            'label' => [' groceries ', 'urgent'],
         ]));
 
         $todo = Todo::query()->where('title', 'Buy milk')->first();
@@ -26,11 +27,13 @@ class CreateTodoItemTest extends TestCase
         $this->assertModelExists($todo);
         $this->assertSame('Buy milk', $todo->title);
         $this->assertSame('Two liters', $todo->description);
+        $this->assertSame(['groceries', 'urgent'], $todo->label);
         $this->assertFalse($todo->completed);
         $this->assertSame([
             'id' => $todo->id,
             'title' => 'Buy milk',
             'description' => 'Two liters',
+            'label' => ['groceries', 'urgent'],
             'completed' => false,
         ], json_decode($result, true));
     }
@@ -132,5 +135,22 @@ class CreateTodoItemTest extends TestCase
 
         $this->assertNotNull($todo);
         $this->assertFalse($todo->completed);
+    }
+
+    public function test_invalid_label_payload_is_rejected(): void
+    {
+        try {
+            (new CreateTodoItem)->handle(new Request([
+                'title' => 'Buy milk',
+                'label' => 'urgent',
+            ]));
+
+            $this->fail('A string label payload was accepted.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'The label field must be an array.',
+                $exception->validator->errors()->first('label'),
+            );
+        }
     }
 }

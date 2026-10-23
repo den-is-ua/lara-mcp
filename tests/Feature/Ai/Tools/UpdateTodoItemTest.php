@@ -18,6 +18,7 @@ class UpdateTodoItemTest extends TestCase
         $todo = Todo::factory()->create([
             'title' => 'Buy milk',
             'description' => 'Two liters',
+            'label' => ['groceries'],
             'completed' => false,
         ]);
 
@@ -30,11 +31,13 @@ class UpdateTodoItemTest extends TestCase
 
         $this->assertSame('Buy milk', $todo->title);
         $this->assertSame('Two liters', $todo->description);
+        $this->assertSame(['groceries'], $todo->label);
         $this->assertTrue($todo->completed);
         $this->assertSame([
             'id' => $todo->id,
             'title' => 'Buy milk',
             'description' => 'Two liters',
+            'label' => ['groceries'],
             'completed' => true,
         ], json_decode($result, true));
     }
@@ -50,12 +53,14 @@ class UpdateTodoItemTest extends TestCase
             'id' => $todo->id,
             'title' => '  New title  ',
             'description' => '  New notes  ',
+            'label' => [' frontend ', 'review'],
         ]));
 
         $todo->refresh();
 
         $this->assertSame('New title', $todo->title);
         $this->assertSame('New notes', $todo->description);
+        $this->assertSame(['frontend', 'review'], $todo->label);
         $this->assertTrue($todo->completed);
     }
 
@@ -113,7 +118,7 @@ class UpdateTodoItemTest extends TestCase
             $this->fail('An update without changes was accepted.');
         } catch (ValidationException $exception) {
             $this->assertSame(
-                'Provide a title, description, or completed state.',
+                'Provide a title, description, label, or completed state.',
                 $exception->validator->errors()->first('title'),
             );
         }
@@ -144,5 +149,24 @@ class UpdateTodoItemTest extends TestCase
         }
 
         $this->assertSame('Keep me', $todo->refresh()->title);
+    }
+
+    public function test_invalid_label_payload_is_rejected(): void
+    {
+        $todo = Todo::factory()->create(['title' => 'Keep me']);
+
+        try {
+            (new UpdateTodoItem)->handle(new Request([
+                'id' => $todo->id,
+                'label' => 'urgent',
+            ]));
+
+            $this->fail('A string label payload was accepted.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'The label field must be an array.',
+                $exception->validator->errors()->first('label'),
+            );
+        }
     }
 }

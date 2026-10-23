@@ -18,14 +18,17 @@ class GetAllTodoItemsTest extends TestCase
         $olderOpen = Todo::factory()->create([
             'title' => 'Купити молоко',
             'description' => null,
+            'label' => ['home'],
         ]);
         $completed = Todo::factory()->completed()->create([
             'title' => 'Walk the dog',
             'description' => 'Evening',
+            'label' => ['pet'],
         ]);
         $newerOpen = Todo::factory()->create([
             'title' => 'Write tests',
             'description' => 'Cover the list',
+            'label' => ['backend', 'qa'],
         ]);
 
         $result = (new GetAllTodoItems)->handle(new Request);
@@ -36,18 +39,21 @@ class GetAllTodoItemsTest extends TestCase
                 'id' => $newerOpen->id,
                 'title' => 'Write tests',
                 'description' => 'Cover the list',
+                'label' => ['backend', 'qa'],
                 'completed' => false,
             ],
             [
                 'id' => $olderOpen->id,
                 'title' => 'Купити молоко',
                 'description' => null,
+                'label' => ['home'],
                 'completed' => false,
             ],
             [
                 'id' => $completed->id,
                 'title' => 'Walk the dog',
                 'description' => 'Evening',
+                'label' => ['pet'],
                 'completed' => true,
             ],
         ], json_decode($result, true));
@@ -58,10 +64,12 @@ class GetAllTodoItemsTest extends TestCase
         Todo::factory()->create([
             'title' => 'Open task',
             'description' => null,
+            'label' => ['alpha'],
         ]);
         Todo::factory()->completed()->create([
             'title' => 'Finished task',
             'description' => null,
+            'label' => ['beta'],
         ]);
 
         $result = (new GetAllTodoItems)->handle(new Request([
@@ -71,6 +79,7 @@ class GetAllTodoItemsTest extends TestCase
         $todos = json_decode($result, true);
 
         $this->assertSame(['Open task'], array_column($todos, 'title'));
+        $this->assertSame([['alpha']], array_column($todos, 'label'));
         $this->assertSame([false], array_column($todos, 'completed'));
     }
 

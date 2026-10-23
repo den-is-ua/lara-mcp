@@ -28,6 +28,8 @@ class CreateTodoItem implements Tool
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'label' => ['sometimes', 'array'],
+            'label.*' => ['string', 'max:50'],
         ]);
 
         $title = trim((string) $validated['title']);
@@ -41,12 +43,14 @@ class CreateTodoItem implements Tool
         $todo = Todo::query()->create([
             'title' => $title,
             'description' => $this->notes($validated['description'] ?? null),
+            'label' => $this->labels($validated['label'] ?? []),
         ]);
 
         return json_encode([
             'id' => $todo->id,
             'title' => $todo->title,
             'description' => $todo->description,
+            'label' => $todo->label ?? [],
             'completed' => $todo->completed,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
@@ -65,6 +69,9 @@ class CreateTodoItem implements Tool
             'description' => $schema->string()
                 ->description('Необовʼязкові деталі завдання.')
                 ->nullable(),
+            'label' => $schema->array()
+                ->description('Список лейблів завдання.')
+                ->items($schema->string()),
         ];
     }
 
@@ -84,5 +91,25 @@ class CreateTodoItem implements Tool
         }
 
         return $description;
+    }
+
+    /**
+     * Normalize labels before storing.
+     *
+     * @return array<int, string>
+     */
+    private function labels(mixed $labels): array
+    {
+        if (! is_array($labels)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map(
+                fn (mixed $label): string => is_string($label) ? trim($label) : '',
+                $labels,
+            ),
+            fn (string $label): bool => $label !== '',
+        )));
     }
 }
