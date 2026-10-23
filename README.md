@@ -12,8 +12,6 @@ The todo MCP server is available over HTTP at `/mcp/todo` and as a local server 
 - **list-todos-tool** returns todos. Leave `completed` out to get the full list (open items first), or pass it to filter by completion.
 - **update-todo-tool** changes the title, description, or completed state of an existing todo. It needs the id from the list.
 
-A second server, the weather MCP server, is available at `/mcp/weather`. It is a small sample: a current-weather tool and a describe-weather prompt. Both return placeholder text and are here to show the shape of a tool and a prompt.
-
 The same todo data is also available in the web app. Livewire pages at `/todos` and `/chat` sit next to Laravel AI agents that can create, list, and update todos from a conversation.
 
 ## Stack
