@@ -18,4 +18,4 @@ The same todo data is also available in the web app. Livewire pages at `/todos` 
 
 ## Stack
 
-PHP 8.3, Laravel, Livewire, Flux, Laravel AI, Laravel MCP, Laravel Reverb, Fortify, Vite, and Tailwind CSS. The default database is SQLite.
+PHP 8.4, Laravel, Livewire, Flux, Laravel AI, Laravel MCP, Laravel Reverb, Fortify, Vite, and Tailwind CSS. The default database is SQLite.
