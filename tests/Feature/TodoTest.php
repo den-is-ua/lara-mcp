@@ -45,6 +45,7 @@ class TodoTest extends TestCase
         $this->assertSame('Write tests', $todo->title);
         $this->assertSame('Cover create', $todo->description);
         $this->assertSame(['backend', 'urgent'], $todo->label);
+        $this->assertNull($todo->due_date);
         $this->assertFalse($todo->completed);
     }
 
@@ -55,6 +56,31 @@ class TodoTest extends TestCase
             ->set('description', 'Notes without a title')
             ->call('create')
             ->assertHasErrors(['title' => 'The title field is required.']);
+
+        $this->assertDatabaseCount('todos', 0);
+    }
+
+    public function test_creating_a_todo_stores_the_due_date(): void
+    {
+        Livewire::test('pages::todos')
+            ->set('title', 'Write tests')
+            ->set('dueDate', '2026-10-30')
+            ->call('create')
+            ->assertHasNoErrors();
+
+        $todo = Todo::query()->where('title', 'Write tests')->first();
+
+        $this->assertNotNull($todo);
+        $this->assertSame('2026-10-30', $todo->due_date?->toDateString());
+    }
+
+    public function test_invalid_due_date_is_rejected_when_creating_a_todo(): void
+    {
+        Livewire::test('pages::todos')
+            ->set('title', 'Write tests')
+            ->set('dueDate', 'tomorrow')
+            ->call('create')
+            ->assertHasErrors(['dueDate' => 'The due date field must be a valid date.']);
 
         $this->assertDatabaseCount('todos', 0);
     }
@@ -79,7 +105,41 @@ class TodoTest extends TestCase
         $this->assertSame('New title', $todo->title);
         $this->assertSame('New notes', $todo->description);
         $this->assertSame(['frontend', 'review'], $todo->label);
+        $this->assertNull($todo->due_date);
         $this->assertFalse($todo->completed);
+    }
+
+    public function test_updating_a_todo_stores_the_due_date(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Write tests',
+            'due_date' => '2026-10-30',
+        ]);
+
+        Livewire::test('pages::todos')
+            ->call('edit', $todo->id)
+            ->assertSet('editingDueDate', '2026-10-30')
+            ->set('editingDueDate', '2026-11-02')
+            ->call('update')
+            ->assertHasNoErrors();
+
+        $this->assertSame('2026-11-02', $todo->refresh()->due_date?->toDateString());
+    }
+
+    public function test_clearing_the_due_date_stores_null(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Write tests',
+            'due_date' => '2026-10-30',
+        ]);
+
+        Livewire::test('pages::todos')
+            ->call('edit', $todo->id)
+            ->set('editingDueDate', '')
+            ->call('update')
+            ->assertHasNoErrors();
+
+        $this->assertNull($todo->refresh()->due_date);
     }
 
     public function test_empty_title_is_rejected_when_updating_a_todo(): void
@@ -154,5 +214,18 @@ class TodoTest extends TestCase
         $response->assertOk();
         $response->assertSee('backend');
         $response->assertSee('urgent');
+    }
+
+    public function test_due_date_is_rendered_in_the_todo_list(): void
+    {
+        Todo::factory()->create([
+            'title' => 'Plan release',
+            'due_date' => '2026-10-30',
+        ]);
+
+        $response = $this->get(route('todos'));
+
+        $response->assertOk();
+        $response->assertSee('2026-10-30');
     }
 }

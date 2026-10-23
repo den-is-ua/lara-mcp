@@ -38,6 +38,7 @@ class UpdateTodoItemTest extends TestCase
             'title' => 'Buy milk',
             'description' => 'Two liters',
             'label' => ['groceries'],
+            'due_date' => null,
             'completed' => true,
         ], json_decode($result, true));
     }
@@ -118,7 +119,7 @@ class UpdateTodoItemTest extends TestCase
             $this->fail('An update without changes was accepted.');
         } catch (ValidationException $exception) {
             $this->assertSame(
-                'Provide a title, description, label, or completed state.',
+                'Provide a title, description, label, due date, or completed state.',
                 $exception->validator->errors()->first('title'),
             );
         }
@@ -149,6 +150,60 @@ class UpdateTodoItemTest extends TestCase
         }
 
         $this->assertSame('Keep me', $todo->refresh()->title);
+    }
+
+    public function test_due_date_can_be_set(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => null,
+        ]);
+
+        (new UpdateTodoItem)->handle(new Request([
+            'id' => $todo->id,
+            'due_date' => '2026-10-30',
+        ]));
+
+        $this->assertSame('2026-10-30', $todo->refresh()->due_date?->toDateString());
+    }
+
+    public function test_null_due_date_clears_the_date(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        (new UpdateTodoItem)->handle(new Request([
+            'id' => $todo->id,
+            'due_date' => null,
+        ]));
+
+        $this->assertNull($todo->refresh()->due_date);
+    }
+
+    public function test_invalid_due_date_is_rejected(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        try {
+            (new UpdateTodoItem)->handle(new Request([
+                'id' => $todo->id,
+                'due_date' => 'tomorrow',
+            ]));
+
+            $this->fail('An invalid due date was accepted.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'The due date field must be a valid date.',
+                $exception->validator->errors()->first('due_date'),
+            );
+        }
+
+        $this->assertSame('2026-10-30', $todo->refresh()->due_date?->toDateString());
     }
 
     public function test_invalid_label_payload_is_rejected(): void

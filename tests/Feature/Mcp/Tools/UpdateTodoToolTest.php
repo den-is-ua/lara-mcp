@@ -35,6 +35,7 @@ class UpdateTodoToolTest extends TestCase
             'id' => $todo->id,
             'title' => 'Buy milk',
             'description' => 'Two liters',
+            'due_date' => null,
             'completed' => true,
         ]);
     }
@@ -101,7 +102,7 @@ class UpdateTodoToolTest extends TestCase
         TodoServer::tool(UpdateTodoTool::class, [
             'id' => $todo->id,
         ])->assertHasErrors([
-            'Provide a title, description, or completed state.',
+            'Provide a title, description, due date, or completed state.',
         ]);
 
         $todo->refresh();
@@ -123,5 +124,59 @@ class UpdateTodoToolTest extends TestCase
         ]);
 
         $this->assertSame('Keep me', $todo->refresh()->title);
+    }
+
+    public function test_due_date_can_be_set(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+            'due_date' => null,
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'due_date' => '2026-10-30',
+        ])->assertOk()->assertStructuredContent([
+            'id' => $todo->id,
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+            'due_date' => '2026-10-30',
+            'completed' => false,
+        ]);
+
+        $this->assertSame('2026-10-30', $todo->refresh()->due_date?->toDateString());
+    }
+
+    public function test_null_due_date_clears_the_date(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'due_date' => null,
+        ])->assertOk();
+
+        $this->assertNull($todo->refresh()->due_date);
+    }
+
+    public function test_invalid_due_date_is_rejected(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'due_date' => 'tomorrow',
+        ])->assertHasErrors([
+            'The due date field must be a valid date.',
+        ]);
+
+        $this->assertSame('2026-10-30', $todo->refresh()->due_date?->toDateString());
     }
 }

@@ -31,6 +31,7 @@ class UpdateTodoItem implements Tool
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'label' => ['sometimes', 'array'],
             'label.*' => ['string', 'max:50'],
+            'due_date' => ['sometimes', 'nullable', 'date'],
             'completed' => ['sometimes', 'boolean'],
         ]);
 
@@ -58,13 +59,17 @@ class UpdateTodoItem implements Tool
             $changes['label'] = $this->labels($validated['label']);
         }
 
+        if (array_key_exists('due_date', $validated)) {
+            $changes['due_date'] = $this->dueDate($validated['due_date']);
+        }
+
         if (array_key_exists('completed', $validated)) {
             $changes['completed'] = $request->boolean('completed');
         }
 
         if ($changes === []) {
             throw ValidationException::withMessages([
-                'title' => 'Provide a title, description, label, or completed state.',
+                'title' => 'Provide a title, description, label, due date, or completed state.',
             ]);
         }
 
@@ -76,6 +81,7 @@ class UpdateTodoItem implements Tool
             'title' => $todo->title,
             'description' => $todo->description,
             'label' => $todo->label ?? [],
+            'due_date' => $todo->due_date?->toDateString(),
             'completed' => $todo->completed,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
@@ -99,6 +105,9 @@ class UpdateTodoItem implements Tool
             'label' => $schema->array()
                 ->description('Новий список лейблів. Передай порожній масив, щоб прибрати лейбли.')
                 ->items($schema->string()),
+            'due_date' => $schema->string()
+                ->description('Нова дата виконання у форматі YYYY-MM-DD. Передай null, щоб прибрати дату.')
+                ->nullable(),
             'completed' => $schema->boolean()
                 ->description('true, якщо завдання виконане, і false, якщо його треба відкрити знову.'),
         ];
@@ -122,5 +131,23 @@ class UpdateTodoItem implements Tool
             ),
             fn (string $label): bool => $label !== '',
         )));
+    }
+
+    /**
+     * Store an empty due date as null.
+     */
+    private function dueDate(mixed $dueDate): ?string
+    {
+        if (! is_string($dueDate)) {
+            return null;
+        }
+
+        $dueDate = trim($dueDate);
+
+        if ($dueDate === '') {
+            return null;
+        }
+
+        return $dueDate;
     }
 }

@@ -38,6 +38,7 @@ class ListTodosTool extends Tool
                 'id' => $todo->id,
                 'title' => $todo->title,
                 'description' => $todo->description,
+                'due_date' => $todo->due_date?->toDateString(),
                 'completed' => $todo->completed,
             ])
             ->all();
@@ -78,6 +79,9 @@ class ListTodosTool extends Tool
                         ->required(),
                     'description' => $schema->string()
                         ->description('Деталі завдання.')
+                        ->nullable(),
+                    'due_date' => $schema->string()
+                        ->description('Дата виконання у форматі YYYY-MM-DD.')
                         ->nullable(),
                     'completed' => $schema->boolean()
                         ->description('Чи виконане завдання.')

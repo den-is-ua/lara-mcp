@@ -23,6 +23,7 @@ class CreateTodoTool extends Tool
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'due_date' => ['nullable', 'date'],
         ]);
 
         $title = trim((string) $validated['title']);
@@ -36,6 +37,7 @@ class CreateTodoTool extends Tool
         $todo = Todo::query()->create([
             'title' => $title,
             'description' => $this->notes($validated['description'] ?? null),
+            'due_date' => $this->dueDate($validated['due_date'] ?? null),
         ]);
 
         return Response::structured($this->payload($todo));
@@ -54,6 +56,9 @@ class CreateTodoTool extends Tool
                 ->required(),
             'description' => $schema->string()
                 ->description('Необовʼязкові деталі завдання.')
+                ->nullable(),
+            'due_date' => $schema->string()
+                ->description('Необовʼязкова дата виконання у форматі YYYY-MM-DD.')
                 ->nullable(),
         ];
     }
@@ -74,6 +79,9 @@ class CreateTodoTool extends Tool
                 ->required(),
             'description' => $schema->string()
                 ->description('Деталі завдання.')
+                ->nullable(),
+            'due_date' => $schema->string()
+                ->description('Дата виконання у форматі YYYY-MM-DD.')
                 ->nullable(),
             'completed' => $schema->boolean()
                 ->description('Чи виконане завдання.')
@@ -100,7 +108,25 @@ class CreateTodoTool extends Tool
     }
 
     /**
-     * @return array{id: int, title: string, description: string|null, completed: bool}
+     * Store an empty due date as null.
+     */
+    private function dueDate(mixed $dueDate): ?string
+    {
+        if (! is_string($dueDate)) {
+            return null;
+        }
+
+        $dueDate = trim($dueDate);
+
+        if ($dueDate === '') {
+            return null;
+        }
+
+        return $dueDate;
+    }
+
+    /**
+     * @return array{id: int, title: string, description: string|null, due_date: string|null, completed: bool}
      */
     private function payload(Todo $todo): array
     {
@@ -108,6 +134,7 @@ class CreateTodoTool extends Tool
             'id' => $todo->id,
             'title' => $todo->title,
             'description' => $todo->description,
+            'due_date' => $todo->due_date?->toDateString(),
             'completed' => $todo->completed,
         ];
     }

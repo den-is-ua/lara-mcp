@@ -25,6 +25,7 @@ class ListTodosToolTest extends TestCase
         $newerOpen = Todo::factory()->create([
             'title' => 'Write tests',
             'description' => 'Cover the list',
+            'due_date' => '2026-10-30',
         ]);
 
         $response = TodoServer::tool(ListTodosTool::class);
@@ -35,18 +36,21 @@ class ListTodosToolTest extends TestCase
                     'id' => $newerOpen->id,
                     'title' => 'Write tests',
                     'description' => 'Cover the list',
+                    'due_date' => '2026-10-30',
                     'completed' => false,
                 ],
                 [
                     'id' => $olderOpen->id,
                     'title' => 'Купити молоко',
                     'description' => null,
+                    'due_date' => null,
                     'completed' => false,
                 ],
                 [
                     'id' => $completed->id,
                     'title' => 'Walk the dog',
                     'description' => 'Evening',
+                    'due_date' => null,
                     'completed' => true,
                 ],
             ],
@@ -74,6 +78,7 @@ class ListTodosToolTest extends TestCase
                     'id' => $open->id,
                     'title' => 'Open task',
                     'description' => null,
+                    'due_date' => null,
                     'completed' => false,
                 ],
             ],
@@ -101,6 +106,7 @@ class ListTodosToolTest extends TestCase
                     'id' => $finished->id,
                     'title' => 'Finished task',
                     'description' => null,
+                    'due_date' => null,
                     'completed' => true,
                 ],
             ],

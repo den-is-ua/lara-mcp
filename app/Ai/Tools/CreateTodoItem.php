@@ -30,6 +30,7 @@ class CreateTodoItem implements Tool
             'description' => ['nullable', 'string', 'max:5000'],
             'label' => ['sometimes', 'array'],
             'label.*' => ['string', 'max:50'],
+            'due_date' => ['nullable', 'date'],
         ]);
 
         $title = trim((string) $validated['title']);
@@ -44,6 +45,7 @@ class CreateTodoItem implements Tool
             'title' => $title,
             'description' => $this->notes($validated['description'] ?? null),
             'label' => $this->labels($validated['label'] ?? []),
+            'due_date' => $this->dueDate($validated['due_date'] ?? null),
         ]);
 
         return json_encode([
@@ -51,6 +53,7 @@ class CreateTodoItem implements Tool
             'title' => $todo->title,
             'description' => $todo->description,
             'label' => $todo->label ?? [],
+            'due_date' => $todo->due_date?->toDateString(),
             'completed' => $todo->completed,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
@@ -72,6 +75,9 @@ class CreateTodoItem implements Tool
             'label' => $schema->array()
                 ->description('Список лейблів завдання.')
                 ->items($schema->string()),
+            'due_date' => $schema->string()
+                ->description('Необовʼязкова дата виконання у форматі YYYY-MM-DD.')
+                ->nullable(),
         ];
     }
 
@@ -91,6 +97,24 @@ class CreateTodoItem implements Tool
         }
 
         return $description;
+    }
+
+    /**
+     * Store an empty due date as null.
+     */
+    private function dueDate(mixed $dueDate): ?string
+    {
+        if (! is_string($dueDate)) {
+            return null;
+        }
+
+        $dueDate = trim($dueDate);
+
+        if ($dueDate === '') {
+            return null;
+        }
+
+        return $dueDate;
     }
 
     /**

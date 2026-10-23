@@ -29,6 +29,7 @@ class GetAllTodoItemsTest extends TestCase
             'title' => 'Write tests',
             'description' => 'Cover the list',
             'label' => ['backend', 'qa'],
+            'due_date' => '2026-10-30',
         ]);
 
         $result = (new GetAllTodoItems)->handle(new Request);
@@ -40,6 +41,7 @@ class GetAllTodoItemsTest extends TestCase
                 'title' => 'Write tests',
                 'description' => 'Cover the list',
                 'label' => ['backend', 'qa'],
+                'due_date' => '2026-10-30',
                 'completed' => false,
             ],
             [
@@ -47,6 +49,7 @@ class GetAllTodoItemsTest extends TestCase
                 'title' => 'Купити молоко',
                 'description' => null,
                 'label' => ['home'],
+                'due_date' => null,
                 'completed' => false,
             ],
             [
@@ -54,6 +57,7 @@ class GetAllTodoItemsTest extends TestCase
                 'title' => 'Walk the dog',
                 'description' => 'Evening',
                 'label' => ['pet'],
+                'due_date' => null,
                 'completed' => true,
             ],
         ], json_decode($result, true));

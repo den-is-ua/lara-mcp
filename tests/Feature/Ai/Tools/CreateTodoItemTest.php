@@ -28,12 +28,14 @@ class CreateTodoItemTest extends TestCase
         $this->assertSame('Buy milk', $todo->title);
         $this->assertSame('Two liters', $todo->description);
         $this->assertSame(['groceries', 'urgent'], $todo->label);
+        $this->assertNull($todo->due_date);
         $this->assertFalse($todo->completed);
         $this->assertSame([
             'id' => $todo->id,
             'title' => 'Buy milk',
             'description' => 'Two liters',
             'label' => ['groceries', 'urgent'],
+            'due_date' => null,
             'completed' => false,
         ], json_decode($result, true));
     }
@@ -135,6 +137,39 @@ class CreateTodoItemTest extends TestCase
 
         $this->assertNotNull($todo);
         $this->assertFalse($todo->completed);
+    }
+
+    public function test_due_date_is_stored(): void
+    {
+        $result = (new CreateTodoItem)->handle(new Request([
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]));
+
+        $todo = Todo::query()->where('title', 'Buy milk')->first();
+
+        $this->assertNotNull($todo);
+        $this->assertSame('2026-10-30', $todo->due_date?->toDateString());
+        $this->assertSame('2026-10-30', json_decode($result, true)['due_date']);
+    }
+
+    public function test_invalid_due_date_is_rejected(): void
+    {
+        try {
+            (new CreateTodoItem)->handle(new Request([
+                'title' => 'Buy milk',
+                'due_date' => 'tomorrow',
+            ]));
+
+            $this->fail('An invalid due date was accepted.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'The due date field must be a valid date.',
+                $exception->validator->errors()->first('due_date'),
+            );
+        }
+
+        $this->assertDatabaseCount('todos', 0);
     }
 
     public function test_invalid_label_payload_is_rejected(): void

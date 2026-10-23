@@ -42,6 +42,7 @@ class GetAllTodoItems implements Tool
                 'title' => $todo->title,
                 'description' => $todo->description,
                 'label' => $todo->label ?? [],
+                'due_date' => $todo->due_date?->toDateString(),
                 'completed' => $todo->completed,
             ])
             ->all();

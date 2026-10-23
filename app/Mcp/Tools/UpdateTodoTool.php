@@ -13,7 +13,7 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 
-#[Description('Оновлює назву, опис або стан виконання наявного завдання. Потрібен id із списку завдань.')]
+#[Description('Оновлює назву, опис, дату виконання або стан виконання наявного завдання. Потрібен id із списку завдань.')]
 #[IsIdempotent]
 class UpdateTodoTool extends Tool
 {
@@ -26,6 +26,7 @@ class UpdateTodoTool extends Tool
             'id' => ['required', 'integer', 'exists:todos,id'],
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'due_date' => ['sometimes', 'nullable', 'date'],
             'completed' => ['sometimes', 'boolean'],
         ]);
 
@@ -49,13 +50,17 @@ class UpdateTodoTool extends Tool
             $changes['description'] = $description === '' ? null : $description;
         }
 
+        if (array_key_exists('due_date', $validated)) {
+            $changes['due_date'] = $this->dueDate($validated['due_date']);
+        }
+
         if (array_key_exists('completed', $validated)) {
             $changes['completed'] = $request->boolean('completed');
         }
 
         if ($changes === []) {
             throw ValidationException::withMessages([
-                'title' => 'Provide a title, description, or completed state.',
+                'title' => 'Provide a title, description, due date, or completed state.',
             ]);
         }
 
@@ -81,6 +86,9 @@ class UpdateTodoTool extends Tool
             'description' => $schema->string()
                 ->description('Новий опис. Передай null, щоб очистити опис.')
                 ->nullable(),
+            'due_date' => $schema->string()
+                ->description('Нова дата виконання у форматі YYYY-MM-DD. Передай null, щоб прибрати дату.')
+                ->nullable(),
             'completed' => $schema->boolean()
                 ->description('true, якщо завдання виконане, і false, якщо його треба відкрити знову.'),
         ];
@@ -103,6 +111,9 @@ class UpdateTodoTool extends Tool
             'description' => $schema->string()
                 ->description('Деталі завдання.')
                 ->nullable(),
+            'due_date' => $schema->string()
+                ->description('Дата виконання у форматі YYYY-MM-DD.')
+                ->nullable(),
             'completed' => $schema->boolean()
                 ->description('Чи виконане завдання.')
                 ->required(),
@@ -110,7 +121,7 @@ class UpdateTodoTool extends Tool
     }
 
     /**
-     * @return array{id: int, title: string, description: string|null, completed: bool}
+     * @return array{id: int, title: string, description: string|null, due_date: string|null, completed: bool}
      */
     private function payload(Todo $todo): array
     {
@@ -118,7 +129,26 @@ class UpdateTodoTool extends Tool
             'id' => $todo->id,
             'title' => $todo->title,
             'description' => $todo->description,
+            'due_date' => $todo->due_date?->toDateString(),
             'completed' => $todo->completed,
         ];
+    }
+
+    /**
+     * Store an empty due date as null.
+     */
+    private function dueDate(mixed $dueDate): ?string
+    {
+        if (! is_string($dueDate)) {
+            return null;
+        }
+
+        $dueDate = trim($dueDate);
+
+        if ($dueDate === '') {
+            return null;
+        }
+
+        return $dueDate;
     }
 }

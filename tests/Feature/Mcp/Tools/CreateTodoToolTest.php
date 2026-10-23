@@ -25,12 +25,14 @@ class CreateTodoToolTest extends TestCase
         $this->assertModelExists($todo);
         $this->assertSame('Buy milk', $todo->title);
         $this->assertSame('Two liters', $todo->description);
+        $this->assertNull($todo->due_date);
         $this->assertFalse($todo->completed);
 
         $response->assertOk()->assertStructuredContent([
             'id' => $todo->id,
             'title' => 'Buy milk',
             'description' => 'Two liters',
+            'due_date' => null,
             'completed' => false,
         ]);
     }
@@ -104,5 +106,38 @@ class CreateTodoToolTest extends TestCase
 
         $this->assertNotNull($todo);
         $this->assertFalse($todo->completed);
+    }
+
+    public function test_due_date_is_stored(): void
+    {
+        $response = TodoServer::tool(CreateTodoTool::class, [
+            'title' => 'Buy milk',
+            'due_date' => '2026-10-30',
+        ]);
+
+        $todo = Todo::query()->where('title', 'Buy milk')->first();
+
+        $this->assertNotNull($todo);
+        $this->assertSame('2026-10-30', $todo->due_date?->toDateString());
+
+        $response->assertOk()->assertStructuredContent([
+            'id' => $todo->id,
+            'title' => 'Buy milk',
+            'description' => null,
+            'due_date' => '2026-10-30',
+            'completed' => false,
+        ]);
+    }
+
+    public function test_invalid_due_date_is_rejected(): void
+    {
+        TodoServer::tool(CreateTodoTool::class, [
+            'title' => 'Buy milk',
+            'due_date' => 'tomorrow',
+        ])->assertHasErrors([
+            'The due date field must be a valid date.',
+        ]);
+
+        $this->assertDatabaseCount('todos', 0);
     }
 }

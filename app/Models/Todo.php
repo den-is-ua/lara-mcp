@@ -13,11 +13,12 @@ use Illuminate\Support\Carbon;
  * @property string $title
  * @property string|null $description
  * @property array<int, string> $label
+ * @property Carbon|null $due_date
  * @property bool $completed
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['title', 'description', 'label', 'completed'])]
+#[Fillable(['title', 'description', 'label', 'due_date', 'completed'])]
 class Todo extends Model
 {
     /** @use HasFactory<TodoFactory> */
@@ -40,6 +41,7 @@ class Todo extends Model
     {
         return [
             'label' => 'array',
+            'due_date' => 'date',
             'completed' => 'boolean',
         ];
     }

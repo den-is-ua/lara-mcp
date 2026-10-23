@@ -20,6 +20,8 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
 
     public string $labelInput = '';
 
+    public string $dueDate = '';
+
     public ?int $editingId = null;
 
     public string $editingTitle = '';
@@ -32,6 +34,8 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
     public array $editingLabels = [];
 
     public string $editingLabelInput = '';
+
+    public string $editingDueDate = '';
 
     public ?int $deletingId = null;
 
@@ -96,15 +100,17 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
             'description' => ['nullable', 'string', 'max:5000'],
             'labels' => ['array'],
             'labels.*' => ['string', 'max:50'],
+            'dueDate' => ['nullable', 'date'],
         ]);
 
         Todo::query()->create([
             'title' => $validated['title'],
             'description' => $this->nullableDescription($validated['description'] ?? null),
             'label' => $this->normalizedLabels($validated['labels'] ?? []),
+            'due_date' => $this->nullableDueDate($validated['dueDate'] ?? null),
         ]);
 
-        $this->reset('title', 'description', 'labels', 'labelInput');
+        $this->reset('title', 'description', 'labels', 'labelInput', 'dueDate');
 
         Flux::toast(variant: 'success', text: __('Todo created.'));
     }
@@ -119,6 +125,7 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
         $this->editingDescription = $todo->description ?? '';
         $this->editingLabels = $this->normalizedLabels($todo->label ?? []);
         $this->editingLabelInput = '';
+        $this->editingDueDate = $todo->due_date?->toDateString() ?? '';
         $this->resetValidation();
     }
 
@@ -127,7 +134,7 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
      */
     public function cancelEdit(): void
     {
-        $this->reset('editingId', 'editingTitle', 'editingDescription', 'editingLabels', 'editingLabelInput');
+        $this->reset('editingId', 'editingTitle', 'editingDescription', 'editingLabels', 'editingLabelInput', 'editingDueDate');
         $this->resetValidation();
     }
 
@@ -145,10 +152,12 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
             'editingDescription' => ['nullable', 'string', 'max:5000'],
             'editingLabels' => ['array'],
             'editingLabels.*' => ['string', 'max:50'],
+            'editingDueDate' => ['nullable', 'date'],
         ], [], [
             'editingTitle' => __('title'),
             'editingDescription' => __('notes'),
             'editingLabels' => __('labels'),
+            'editingDueDate' => __('due date'),
         ]);
 
         $todo = Todo::query()->findOrFail($this->editingId);
@@ -157,6 +166,7 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
             'title' => $validated['editingTitle'],
             'description' => $this->nullableDescription($validated['editingDescription'] ?? null),
             'label' => $this->normalizedLabels($validated['editingLabels'] ?? []),
+            'due_date' => $this->nullableDueDate($validated['editingDueDate'] ?? null),
         ]);
 
         $this->cancelEdit();
@@ -197,7 +207,7 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
         $todo->delete();
 
         if ($this->editingId === $todo->id) {
-            $this->reset('editingId', 'editingTitle', 'editingDescription', 'editingLabels', 'editingLabelInput');
+            $this->reset('editingId', 'editingTitle', 'editingDescription', 'editingLabels', 'editingLabelInput', 'editingDueDate');
         }
 
         $this->reset('deletingId', 'showDeleteModal');
@@ -262,6 +272,18 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
     }
 
     /**
+     * Store an empty due date as null.
+     */
+    private function nullableDueDate(?string $dueDate): ?string
+    {
+        if ($dueDate === null || $dueDate === '') {
+            return null;
+        }
+
+        return $dueDate;
+    }
+
+    /**
      * Add one label to a list while avoiding empty and duplicate entries.
      *
      * @param  array<int, string>  $labels
@@ -316,6 +338,8 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
 
             <flux:textarea wire:model="description" :label="__('Notes')" rows="3" data-test="todo-description-input" />
 
+            <flux:input wire:model="dueDate" :label="__('Due date')" type="date" data-test="todo-due-date-input" />
+
             <div class="flex flex-col gap-2">
                 <div class="flex items-end gap-2">
                     <flux:input wire:model="labelInput" :label="__('Label')" type="text" data-test="todo-label-input" />
@@ -359,6 +383,8 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
                         <flux:input wire:model="editingTitle" :label="__('Title')" type="text" required data-test="edit-todo-title" />
 
                         <flux:textarea wire:model="editingDescription" :label="__('Notes')" rows="3" data-test="edit-todo-description" />
+
+                        <flux:input wire:model="editingDueDate" :label="__('Due date')" type="date" data-test="edit-todo-due-date" />
 
                         <div class="flex flex-col gap-2">
                             <div class="flex items-end gap-2">
@@ -409,6 +435,9 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
                                 @if (filled($todo->description))
                                     <flux:text class="break-words">{{ $todo->description }}</flux:text>
                                 @endif
+                                @if ($todo->due_date)
+                                    <flux:text data-test="todo-due-date-{{ $todo->id }}">{{ $todo->due_date->toDateString() }}</flux:text>
+                                @endif
                             </div>
                         </div>
 
@@ -444,6 +473,8 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
                         <flux:input wire:model="editingTitle" :label="__('Title')" type="text" required data-test="edit-todo-title" />
 
                         <flux:textarea wire:model="editingDescription" :label="__('Notes')" rows="3" data-test="edit-todo-description" />
+
+                        <flux:input wire:model="editingDueDate" :label="__('Due date')" type="date" data-test="edit-todo-due-date" />
 
                         <div class="flex flex-col gap-2">
                             <div class="flex items-end gap-2">
@@ -491,6 +522,9 @@ new #[Layout('layouts::public')] #[Title('Todos')] class extends Component {
                         @endif
                         @if (filled($todo->description))
                             <flux:text class="break-words text-zinc-500 line-through dark:text-zinc-400">{{ $todo->description }}</flux:text>
+                        @endif
+                        @if ($todo->due_date)
+                            <flux:text data-test="todo-due-date-{{ $todo->id }}">{{ $todo->due_date->toDateString() }}</flux:text>
                         @endif
 
                         <div class="flex flex-wrap items-center gap-2">
