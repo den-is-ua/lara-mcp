@@ -2,6 +2,9 @@
 
 namespace App\Mcp\Servers;
 
+use App\Mcp\Prompts\CaptureTodoPrompt;
+use App\Mcp\Prompts\CompleteTodoPrompt;
+use App\Mcp\Prompts\PlanOpenTodosPrompt;
 use App\Mcp\Tools\CreateTodoTool;
 use App\Mcp\Tools\ListTodosTool;
 use App\Mcp\Tools\UpdateTodoTool;
@@ -32,6 +35,8 @@ class TodoServer extends Server
     ];
 
     protected array $prompts = [
-        //
+        CaptureTodoPrompt::class,
+        PlanOpenTodosPrompt::class,
+        CompleteTodoPrompt::class,
     ];
 }
