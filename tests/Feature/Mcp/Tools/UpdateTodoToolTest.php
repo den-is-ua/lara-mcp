@@ -112,6 +112,92 @@ class UpdateTodoToolTest extends TestCase
         $this->assertFalse($todo->completed);
     }
 
+    public function test_marking_a_todo_incomplete_leaves_the_title_and_notes_unchanged(): void
+    {
+        $todo = Todo::factory()->completed()->create([
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+        ]);
+
+        $response = TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'completed' => false,
+        ]);
+
+        $todo->refresh();
+
+        $this->assertFalse($todo->completed);
+        $this->assertSame('Buy milk', $todo->title);
+        $this->assertSame('Two liters', $todo->description);
+
+        $response->assertOk()->assertStructuredContent([
+            'id' => $todo->id,
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+            'due_date' => null,
+            'completed' => false,
+        ]);
+    }
+
+    public function test_blank_description_clears_the_notes(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Buy milk',
+            'description' => 'Two liters',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'description' => '   ',
+        ])->assertOk();
+
+        $todo->refresh();
+
+        $this->assertSame('Buy milk', $todo->title);
+        $this->assertNull($todo->description);
+        $this->assertFalse($todo->completed);
+    }
+
+    public function test_title_longer_than_255_characters_is_rejected(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Keep me',
+            'description' => 'Same notes',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'title' => str_repeat('a', 256),
+        ])->assertHasErrors([
+            'The title field must not be greater than 255 characters.',
+        ]);
+
+        $todo->refresh();
+
+        $this->assertSame('Keep me', $todo->title);
+        $this->assertSame('Same notes', $todo->description);
+    }
+
+    public function test_notes_longer_than_5000_characters_are_rejected(): void
+    {
+        $todo = Todo::factory()->create([
+            'title' => 'Keep me',
+            'description' => 'Same notes',
+        ]);
+
+        TodoServer::tool(UpdateTodoTool::class, [
+            'id' => $todo->id,
+            'description' => str_repeat('a', 5001),
+        ])->assertHasErrors([
+            'The description field must not be greater than 5000 characters.',
+        ]);
+
+        $todo->refresh();
+
+        $this->assertSame('Keep me', $todo->title);
+        $this->assertSame('Same notes', $todo->description);
+    }
+
     public function test_whitespace_title_is_rejected_and_the_todo_stays_unchanged(): void
     {
         $todo = Todo::factory()->create(['title' => 'Keep me']);

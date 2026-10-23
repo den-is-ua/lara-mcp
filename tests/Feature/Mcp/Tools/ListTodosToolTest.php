@@ -85,6 +85,45 @@ class ListTodosToolTest extends TestCase
         ]);
     }
 
+    public function test_completed_filter_returns_finished_todos_newest_first(): void
+    {
+        $older = Todo::factory()->completed()->create([
+            'title' => 'Older done',
+            'description' => null,
+        ]);
+        Todo::factory()->create([
+            'title' => 'Still open',
+            'description' => null,
+        ]);
+        $newer = Todo::factory()->completed()->create([
+            'title' => 'Newer done',
+            'description' => 'Done',
+        ]);
+
+        $response = TodoServer::tool(ListTodosTool::class, [
+            'completed' => true,
+        ]);
+
+        $response->assertOk()->assertStructuredContent([
+            'todos' => [
+                [
+                    'id' => $newer->id,
+                    'title' => 'Newer done',
+                    'description' => 'Done',
+                    'due_date' => null,
+                    'completed' => true,
+                ],
+                [
+                    'id' => $older->id,
+                    'title' => 'Older done',
+                    'description' => null,
+                    'due_date' => null,
+                    'completed' => true,
+                ],
+            ],
+        ]);
+    }
+
     public function test_completed_filter_returns_only_finished_todos(): void
     {
         Todo::factory()->create([
