@@ -2,13 +2,15 @@
 
 namespace App\Ai\Agents;
 
+use App\Mcp\Tools\CreateTodoTool;
+use App\Mcp\Tools\ListTodosTool;
+use App\Mcp\Tools\UpdateTodoTool;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Contracts\Tool;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\ProviderTool;
-use Laravel\Mcp\Facades\Mcp;
 
 class TodoChat implements Agent, HasTools
 {
@@ -53,7 +55,9 @@ class TodoChat implements Agent, HasTools
     public function tools(): iterable
     {
         return [
-            ...Mcp::client('todo-server')->tools(),
+            new ListTodosTool,
+            new CreateTodoTool,
+            new UpdateTodoTool,
         ];
     }
 }
